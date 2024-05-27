@@ -1,17 +1,15 @@
 import {
-  ArrowRight,
-  ArrowRightAlt,
-  ArrowUpward,
   Dangerous,
   Explore,
   KeyboardDoubleArrowRight,
+  NearMe,
   PriorityHigh,
-  Stop,
   StopCircleOutlined,
   SyncDisabledOutlined,
-  Timeline,
+  SyncOutlined,
+  Timeline
 } from "@mui/icons-material";
-import { getDebugName, toJS } from "mobx";
+import { toJS } from "mobx";
 import { getParent, types } from "mobx-state-tree";
 import {
   getRoot,
@@ -19,14 +17,11 @@ import {
   IOptionalIType,
   isAlive,
   ISimpleType,
-  ModelActions,
+  ModelActions
 } from "mobx-state-tree";
-import { type } from "os";
-import React, { JSXElementConstructor, ReactElement } from "react";
+import { JSXElementConstructor, ReactElement } from "react";
 import { safeGetIdentifier } from "../util/mobxutils";
 import { IStateStore } from "./DocumentModel";
-import { v4 as uuidv4 } from "uuid";
-import { I } from "@tauri-apps/api/path-c062430b";
 import { IHolonomicWaypointStore } from "./HolonomicWaypointStore";
 import { IHolonomicPathStore } from "./HolonomicPathStore";
 
@@ -80,11 +75,11 @@ export const constraints = {
       direction: {
         name: "Direction",
         description: "The direction of velocity",
-        units: "rad",
-      },
+        units: "rad"
+      }
     },
     wptScope: true,
-    sgmtScope: false,
+    sgmtScope: false
   },
   WptZeroVelocity: {
     name: "Waypoint Zero Velocity",
@@ -93,7 +88,7 @@ export const constraints = {
     icon: <Dangerous></Dangerous>,
     properties: {},
     wptScope: true,
-    sgmtScope: false,
+    sgmtScope: false
   },
   StopPoint: {
     name: "Stop Point",
@@ -102,7 +97,7 @@ export const constraints = {
     icon: <StopCircleOutlined></StopCircleOutlined>,
     properties: {},
     wptScope: true,
-    sgmtScope: false,
+    sgmtScope: false
   },
   MaxVelocity: {
     name: "Max Velocity",
@@ -113,11 +108,26 @@ export const constraints = {
       velocity: {
         name: "Max Velocity",
         description: "Maximum Velocity of robot chassis",
-        units: "m/s",
-      },
+        units: "m/s"
+      }
     },
     wptScope: true,
-    sgmtScope: true,
+    sgmtScope: true
+  },
+  MaxAngularVelocity: {
+    name: "Max Angular Velocity",
+    shortName: "Max Ang Velo",
+    description: "Maximum Angular Velocity",
+    icon: <SyncOutlined />,
+    properties: {
+      angular_velocity: {
+        name: "Max Angular Velocity",
+        description: "Maximum Angular Velocity of robot chassis",
+        units: "rad/s"
+      }
+    },
+    wptScope: true,
+    sgmtScope: true
   },
   ZeroAngularVelocity: {
     name: "Zero Angular Velocity",
@@ -126,7 +136,7 @@ export const constraints = {
     icon: <SyncDisabledOutlined></SyncDisabledOutlined>,
     properties: {},
     wptScope: true,
-    sgmtScope: true,
+    sgmtScope: true
   },
   StraightLine: {
     name: "Straight Line",
@@ -135,11 +145,37 @@ export const constraints = {
     icon: <Timeline></Timeline>,
     properties: {},
     wptScope: false,
-    sgmtScope: true,
+    sgmtScope: true
   },
+  PointAt: {
+    name: "Point At",
+    shortName: "Point At",
+    description: "Face a specified point",
+    icon: <NearMe />,
+    properties: {
+      x: {
+        name: "X",
+        description: "The x coordinate of the point the robot should face",
+        units: "m"
+      },
+      y: {
+        name: "Y",
+        description: "The y coordinate of the point the robot should face",
+        units: "m"
+      },
+      tolerance: {
+        name: "Heading Tolerance",
+        description:
+          "The allowable heading range relative to the direction to the point. Keep less than Pi.",
+        units: "rad"
+      }
+    },
+    wptScope: true,
+    sgmtScope: true
+  }
 };
 const WaypointUUIDScope = types.model("WaypointScope", {
-  uuid: types.string,
+  uuid: types.string
 });
 export const WaypointScope = types.union(
   types.literal("first"),
@@ -162,9 +198,9 @@ export const ConstraintStore = types
       sgmtScope: false,
       wptScope: false,
       icon: <PriorityHigh></PriorityHigh>,
-      properties: {},
+      properties: {}
     }),
-    uuid: types.identifier,
+    uuid: types.identifier
   })
   .views((self) => ({
     getType() {
@@ -205,7 +241,7 @@ export const ConstraintStore = types
           const bIdx = path.findUUIDIndex(b.uuid) || 1;
           return aIdx - bIdx;
         });
-    },
+    }
   }))
   .views((self) => ({
     getStartWaypoint(): IHolonomicWaypointStore | undefined {
@@ -228,7 +264,7 @@ export const ConstraintStore = types
         getParent<IConstraintStore[]>(self)
       );
       return path.getByWaypointID(endScope);
-    },
+    }
   }))
   .views((self) => ({
     getStartWaypointIndex(): number | undefined {
@@ -254,33 +290,31 @@ export const ConstraintStore = types
       return path;
     },
     get issues() {
-      let startWaypoint = self.getStartWaypoint();
-      let endWaypoint = self.getEndWaypoint();
-      let scope = self.scope;
-      let issue = false;
-      let issueText = [];
+      const startWaypoint = self.getStartWaypoint();
+      const endWaypoint = self.getEndWaypoint();
+      const scope = self.scope;
+      const issueText = [];
 
       if (scope.length == 2) {
         if (startWaypoint === undefined || endWaypoint === undefined) {
           issueText.push("Constraint refers to missing waypoint(s)");
-        } else {
-          if (startWaypoint!.isInitialGuess || endWaypoint!.isInitialGuess) {
-            issueText.push("Cannot have initial guess point as endpoint");
-          }
+        } else if (
+          startWaypoint!.isInitialGuess ||
+          endWaypoint!.isInitialGuess
+        ) {
+          issueText.push("Cannot have initial guess point as endpoint");
         }
       } else if (scope.length == 1) {
         if (startWaypoint === undefined) {
           issueText.push("Constraint refers to missing waypoint");
-        } else {
-          if (startWaypoint!.isInitialGuess) {
-            issueText.push("Cannot constrain initial guess point");
-          }
+        } else if (startWaypoint!.isInitialGuess) {
+          issueText.push("Cannot constrain initial guess point");
         }
       } else if (scope.length == 0) {
         issueText.push("Scope not set");
       }
       return issueText;
-    },
+    }
   }))
   .actions((self) => ({
     afterCreate() {},
@@ -297,7 +331,7 @@ export const ConstraintStore = types
           )
         );
       }
-    },
+    }
   }));
 
 const defineConstraintStore = (
@@ -309,7 +343,7 @@ const defineConstraintStore = (
       // Define each property onto the model
       .props(
         (() => {
-          let x: {
+          const x: {
             [key: string]: IOptionalIType<ISimpleType<number>, [number]>;
           } = {};
           Object.keys(definition.properties).forEach((key) => {
@@ -323,16 +357,16 @@ const defineConstraintStore = (
       )
       .props({
         type: key,
-        definition: types.frozen(definition),
+        definition: types.frozen(definition)
       })
       // Defined setters for each property
       .actions((self) => {
-        let x: ModelActions = {};
+        const x: ModelActions = {};
         Object.keys(definition.properties).forEach((key) => {
           if (key.length == 0) {
             return;
           }
-          let upperCaseName = key[0].toUpperCase() + key.slice(1);
+          const upperCaseName = key[0].toUpperCase() + key.slice(1);
           x[`set${upperCaseName}`] = (arg0: number) => {
             self[key] = arg0;
           };
@@ -342,7 +376,7 @@ const defineConstraintStore = (
   );
 };
 
-let constraintsStores: { [key: string]: typeof ConstraintStore } = {};
+const constraintsStores: { [key: string]: typeof ConstraintStore } = {};
 Object.entries(constraints).forEach((entry) => {
   constraintsStores[entry[0]] = defineConstraintStore(entry[0], entry[1]);
 });

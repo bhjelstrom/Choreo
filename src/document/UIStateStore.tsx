@@ -3,10 +3,11 @@ import {
   CircleOutlined,
   DoNotDisturb,
   Grid4x4,
+  Room,
   Route,
   ScatterPlot,
   SquareOutlined,
-  CropFree,
+  CropFree
 } from "@mui/icons-material";
 import { path, window as tauriWindow } from "@tauri-apps/api";
 import { getVersion } from "@tauri-apps/api/app";
@@ -19,22 +20,29 @@ import {
   constraints,
   ConstraintStore,
   ConstraintStores,
-  IConstraintStore,
+  IConstraintStore
 } from "./ConstraintStore";
 import {
   HolonomicWaypointStore,
-  IHolonomicWaypointStore,
+  IHolonomicWaypointStore
 } from "./HolonomicWaypointStore";
 import { IRobotConfigStore, RobotConfigStore } from "./RobotConfigStore";
 import {
   CircularObstacleStore,
-  ICircularObstacleStore,
+  ICircularObstacleStore
 } from "./CircularObstacleStore";
+import { EventMarkerStore, IEventMarkerStore } from "./EventMarkerStore";
+import {
+  PathGradient,
+  PathGradients
+} from "../components/config/robotconfig/PathGradient";
+import LocalStorageKeys from "../util/LocalStorageKeys";
 
 export const SelectableItem = types.union(
   {
     dispatcher: (snapshot) => {
       if (snapshot.mass) return RobotConfigStore;
+      if (snapshot.target) return EventMarkerStore;
       if (snapshot.scope) {
         return ConstraintStores[snapshot.type];
       }
@@ -42,16 +50,17 @@ export const SelectableItem = types.union(
         return CircularObstacleStore;
       }
       return HolonomicWaypointStore;
-    },
+    }
   },
   RobotConfigStore,
   HolonomicWaypointStore,
   CircularObstacleStore,
+  EventMarkerStore,
   ...Object.values(ConstraintStores)
 );
 
 /* Navbar stuff */
-export let WaypointData: {
+export const WaypointData: {
   [key: string]: {
     index: number;
     name: string;
@@ -61,25 +70,25 @@ export let WaypointData: {
   FullWaypoint: {
     index: 0,
     name: "Pose Waypoint",
-    icon: <Waypoint />,
+    icon: <Waypoint />
   },
   TranslationWaypoint: {
     index: 1,
     name: "Translation Waypoint",
-    icon: <Circle />,
+    icon: <Circle />
   },
   EmptyWaypoint: {
     index: 2,
     name: "Empty Waypoint",
-    icon: <CircleOutlined />,
+    icon: <CircleOutlined />
   },
   InitialGuessPoint: {
     index: 3,
     name: "Initial Guess Point",
-    icon: <InitialGuessPoint />,
-  },
+    icon: <InitialGuessPoint />
+  }
 };
-let NavbarData: {
+const NavbarData: {
   [key: string]: {
     index: number;
     name: string;
@@ -87,17 +96,18 @@ let NavbarData: {
   };
 } = Object.assign({}, WaypointData);
 const waypointNavbarCount = Object.keys(NavbarData).length;
-let constraintsIndices: number[] = [];
-let navbarIndexToConstraint: { [key: number]: typeof ConstraintStore } = {};
-let navbarIndexToConstraintDefinition: { [key: number]: ConstraintDefinition } =
-  {};
+const constraintsIndices: number[] = [];
+const navbarIndexToConstraint: { [key: number]: typeof ConstraintStore } = {};
+const navbarIndexToConstraintDefinition: {
+  [key: number]: ConstraintDefinition;
+} = {};
 {
   let constraintsOffset = Object.keys(NavbarData).length;
   Object.entries(constraints).forEach(([key, data], index) => {
     NavbarData[key] = {
       index: constraintsOffset,
       name: data.name,
-      icon: data.icon,
+      icon: data.icon
     };
     navbarIndexToConstraint[constraintsOffset] = ConstraintStores[key];
     navbarIndexToConstraintDefinition[constraintsOffset] = data;
@@ -106,7 +116,7 @@ let navbarIndexToConstraintDefinition: { [key: number]: ConstraintDefinition } =
   });
 }
 const constraintNavbarCount = Object.keys(constraints).length;
-export let ObstacleData: {
+export const ObstacleData: {
   [key: string]: {
     index: number;
     name: string;
@@ -116,22 +126,30 @@ export let ObstacleData: {
   CircleObstacle: {
     index: Object.keys(NavbarData).length,
     name: "Circular Obstacle",
-    icon: <DoNotDisturb />,
-  },
+    icon: <DoNotDisturb />
+  }
 };
-const obstacleNavbarCount = Object.keys(ObstacleData).length;
+let obstacleNavbarCount = 0;
+obstacleNavbarCount = Object.keys(ObstacleData).length;
 Object.entries(ObstacleData).forEach(([name, data]) => {
-  let obstaclesOffset = Object.keys(NavbarData).length;
+  const obstaclesOffset = Object.keys(NavbarData).length;
   NavbarData[name] = {
     index: obstaclesOffset,
     name: data.name,
-    icon: data.icon,
+    icon: data.icon
   };
 });
 
+const eventMarkerCount = 1;
+NavbarData.EventMarker = {
+  index: Object.keys(NavbarData).length,
+  name: "Event Marker",
+  icon: <Room></Room>
+};
+
 /** An map of  */
 export const NavbarLabels = (() => {
-  let x: { [key: string]: number } = {};
+  const x: { [key: string]: number } = {};
   Object.entries(NavbarData).forEach(([key, data], index) => {
     x[key] = index;
   });
@@ -140,29 +158,31 @@ export const NavbarLabels = (() => {
 
 /** An array of name-and-icon objects for the navbar */
 export const NavbarItemData = (() => {
-  let x: Array<{ name: string; icon: any }> = [];
-  let constraintsOffset = 0;
+  const x: Array<{ name: string; icon: any }> = [];
   Object.entries(NavbarData).forEach(([key, data], index) => {
     x[data.index] = { name: data.name, icon: data.icon };
-    constraintsOffset++;
   });
   return x;
 })();
 
-export const NavbarItemSectionLengths = [
-  waypointNavbarCount - 1,
-  waypointNavbarCount + constraintNavbarCount - 1,
-  waypointNavbarCount + constraintNavbarCount + obstacleNavbarCount - 1,
-];
+const NavbarItemSections = [waypointNavbarCount, constraintNavbarCount];
+NavbarItemSections.push(obstacleNavbarCount);
+NavbarItemSections.push(eventMarkerCount);
+
+export const NavbarItemSectionEnds = NavbarItemSections.map((s, idx) =>
+  NavbarItemSections.slice(0, idx + 1).reduce((prev, cur) => prev + cur, -1)
+);
+console.log(NavbarItemSectionEnds);
 
 export type SelectableItemTypes =
   | IRobotConfigStore
   | IHolonomicWaypointStore
   | IConstraintStore
   | ICircularObstacleStore
+  | IEventMarkerStore
   | undefined;
 
-/* Visibility stuff */
+/* ViewOptionsPanel items */
 const ViewData = {
   Field: {
     index: 0,
@@ -170,48 +190,48 @@ const ViewData = {
     icon: (
       <SquareOutlined style={{ transform: "scale(1.2, 0.6)" }}></SquareOutlined>
     ),
-    default: true,
+    default: true
   },
   Grid: {
     index: 1,
     name: "Grid",
     icon: <Grid4x4 />,
-    default: false,
+    default: false
   },
   Trajectory: {
     index: 2,
     name: "Trajectory",
     icon: <Route />,
-    default: true,
+    default: true
   },
   Samples: {
     index: 3,
     name: "Samples",
     icon: <ScatterPlot />,
-    default: false,
+    default: false
   },
   Waypoints: {
     index: 4,
     name: "Waypoints",
     icon: <Waypoint />,
-    default: true,
+    default: true
   },
   Obstacles: {
     index: 5,
     name: "Obstacles",
     icon: <DoNotDisturb />,
-    default: true,
+    default: true
   },
   Focus: {
     index: 6,
     name: "Focus",
     icon: <CropFree />,
-    default: false,
-  },
+    default: false
+  }
 };
 
 export const ViewLayers = (() => {
-  let x: { [key: string]: number } = {};
+  const x: { [key: string]: number } = {};
   Object.entries(ViewData).forEach(([key, data], index) => {
     x[key] = index;
   });
@@ -219,7 +239,7 @@ export const ViewLayers = (() => {
 })();
 
 export const ViewItemData = (() => {
-  let x: Array<{ name: string; icon: any; default: boolean }> = [];
+  const x: Array<{ name: string; icon: any; default: boolean }> = [];
   Object.entries(ViewData).forEach(([key, data], index) => {
     x[data.index] = { name: data.name, icon: data.icon, default: data.default };
   });
@@ -227,7 +247,7 @@ export const ViewItemData = (() => {
 })();
 export const ViewLayerDefaults = ViewItemData.map((layer) => layer.default);
 export type ViewLayerType = typeof ViewLayers;
-export const NUM_SETTINGS_TABS = 3;
+export const NUM_SETTINGS_TABS = 4;
 export const UIStateStore = types
   .model("UIStateStore", {
     fieldScalingFactor: 0.02,
@@ -235,7 +255,7 @@ export const UIStateStore = types
     saveFileDir: types.maybe(types.string),
     isGradleProject: types.maybe(types.boolean),
     waypointPanelOpen: false,
-    visibilityPanelOpen: false,
+    isViewOptionsPanelOpen: false,
     robotConfigOpen: false,
     mainMenuOpen: false,
     settingsTab: types.refinement(
@@ -249,6 +269,15 @@ export const UIStateStore = types
     ),
     selectedSidebarItem: types.maybe(types.safeReference(SelectableItem)),
     selectedNavbarItem: NavbarLabels.FullWaypoint,
+    selectedPathGradient: types.maybe(
+      types.union(
+        ...Object.keys(PathGradients).map((key) => types.literal(key))
+      )
+    ),
+
+    contextMenuSelectedWaypoint: types.maybe(types.number),
+    contextMenuWaypointType: types.maybe(types.number),
+    contextMenuMouseSelection: types.maybe(types.array(types.number)) // [clientX, clientY] from `MouseEvent`
   })
   .views((self: any) => {
     return {
@@ -300,12 +329,18 @@ export const UIStateStore = types
       },
       isConstraintSelected() {
         return (
-          self.selectedNavbarItem > NavbarItemSectionLengths[0] &&
-          self.selectedNavbarItem <= NavbarItemSectionLengths[1]
+          self.selectedNavbarItem > NavbarItemSectionEnds[0] &&
+          self.selectedNavbarItem <= NavbarItemSectionEnds[1]
         );
       },
+      isEventMarkerSelected() {
+        return self.selectedNavbarItem == NavbarData.EventMarker.index;
+      },
       isNavbarObstacleSelected() {
-        return self.selectedNavbarItem > NavbarItemSectionLengths[1];
+        return (
+          self.selectedNavbarItem > NavbarItemSectionEnds[1] &&
+          self.selectedNavbarItem <= NavbarItemSectionEnds[2]
+        );
       },
       visibleLayersOnly() {
         return self.layers.flatMap((visible: boolean, index: number) => {
@@ -322,7 +357,7 @@ export const UIStateStore = types
             `Choreo ${await getVersion()} - ${self.saveFileName ?? "Untitled"}`
           )
           .catch(console.error);
-      },
+      }
     };
   })
   .actions((self: any) => ({
@@ -356,8 +391,8 @@ export const UIStateStore = types
     setWaypointPanelOpen(open: boolean) {
       self.waypointPanelOpen = open;
     },
-    setVisibilityPanelOpen(open: boolean) {
-      self.visibilityPanelOpen = open;
+    setViewOptionsPanelOpen(open: boolean) {
+      self.isViewOptionsPanelOpen = open;
     },
     setPathAnimationTimestamp(time: number) {
       self.pathAnimationTimestamp = time;
@@ -379,5 +414,31 @@ export const UIStateStore = types
     setSelectedNavbarItem(item: number) {
       self.selectedNavbarItem = item;
     },
+    setSelectedPathGradient(pathGradient: PathGradient) {
+      self.selectedPathGradient = pathGradient.name;
+      this._saveSelectedPathGradientToLocalStorage();
+    },
+    _saveSelectedPathGradientToLocalStorage() {
+      localStorage.setItem(
+        LocalStorageKeys.PATH_GRADIENT,
+        self.selectedPathGradient
+      );
+    },
+    loadPathGradientFromLocalStorage() {
+      self.selectedPathGradient =
+        localStorage.getItem(LocalStorageKeys.PATH_GRADIENT) ??
+        PathGradients.Velocity.name;
+    },
+    setContextMenuSelectedWaypoint(waypointIndex: number | undefined) {
+      self.contextMenuSelectedWaypoint = waypointIndex;
+    },
+    setContextMenuWaypointType(waypointType: number | undefined) {
+      self.contextMenuWaypointType = waypointType;
+    },
+    setContextMenuMouseSelection(mouseSelection: MouseEvent | undefined) {
+      self.contextMenuMouseSelection = mouseSelection
+        ? [mouseSelection.clientX, mouseSelection.clientY]
+        : undefined;
+    }
   }));
 export interface IUIStateStore extends Instance<typeof UIStateStore> {}
