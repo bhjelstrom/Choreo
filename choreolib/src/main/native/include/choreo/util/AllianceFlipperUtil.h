@@ -46,7 +46,7 @@ struct MirroredFlipper {
 };
 
 /// X becomes fieldLength - x, Y becomes fieldWidth - y, and heading becomes
-/// pi - heading.
+/// pi + heading.
 struct RotateAroundFlipper {
   /// Whether pose should be mirrored.
   static constexpr bool isMirrored = false;

@@ -47,7 +47,7 @@ public class ChoreoAllianceFlipUtil {
         return Math.PI - heading;
       }
     },
-    /** X becomes fieldLength - x, Y becomes fieldWidth - y, and heading becomes PI - heading. */
+    /** X becomes fieldLength - x, Y becomes fieldWidth - y, and heading becomes PI + heading. */
     ROTATE_AROUND {
       public double flipX(double x) {
         return activeYear.fieldLength - x;
